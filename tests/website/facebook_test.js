@@ -10,6 +10,7 @@ Scenario('Melihat halaman facebook', ({ I }) => {
     I.seeElement('//*[@id="email"]');
     I.seeElement('//*[@id="pass"]');
     I.see('Masuk');
+    //cek2
     I.see('Lupa Kata Sandi?');
     I.seeElement('//html/body/div[1]/div[1]/div[1]/div/div/div/div[2]/div/div[1]/form/div[3]/a')
     I.see('Buat Akun Baru');
