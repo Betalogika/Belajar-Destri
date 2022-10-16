@@ -1,0 +1,74 @@
+trigger:
+  - '*'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+    enviRonment: production
+    SECRET_ACCESS_KEY: $(AWS_SECRET_KEY)
+    APP_NAME: kp-automated-test
+    APP_TOKEN: $(APP_PROD)
+
+stages:
+  - stage: artifacts
+    displayName: 'Create Artifacts'
+    jobs:
+      - job: artifacts
+        displayName: 'Create Artifacts'
+        steps:
+          - script: |
+              echo export IMAGE_TAG=prod-$(Build.BuildNumber) > env.sh
+              echo export AWS_SECRET_ACCESS_KEY=$(SECRET_ACCESS_KEY) >> env.sh
+              echo export APP_WEB=$(APP_TOKEN) >> env.sh
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: '$(System.DefaultWorkingDirectory)'
+              artifactName: kp-automated-test
+
+  - stage: build
+    displayName: 'Build Stage'
+    jobs:
+      - job: build
+        displayName: 'Docker Build and Push to ECR'
+        steps:
+          - checkout: none
+
+          - task: DownloadPipelineArtifact@1
+            inputs:
+              downloadPath: '$(System.DefaultWorkingDirectory)'
+          - script: |
+              cd kp-automated-test
+              ls
+              source env.sh
+              docker build -t kp-automated-test .
+              aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
+              docker tag kp-automated-test:latest ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/kp-automated-test:${IMAGE_TAG}
+              docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/kp-automated-test:${IMAGE_TAG}
+
+  - stage: deploy
+    displayName: 'Deploy stage'
+    jobs:
+      - deployment: deploy_${{variables.enviRonment}}
+        displayName: 'Deploy to ${{variables.enviRonment}}'
+        environment: ${{variables.enviRonment}}
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: none
+
+                - task: DownloadPipelineArtifact@1
+                  inputs:
+                    downloadPath: '$(System.DefaultWorkingDirectory)'
+                - script: |
+                    cd kp-automated-test
+                    ls
+                    source env.sh
+                    printenv
+                    aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
+                    curl --header "X-Consul-Token:80eec322-b1ca-0332-f40d-ea57c00fbf32" -XGET https://banjar.trinix.id/v1/kv/dotenv/klinikpintar/aws_ecr_captaintools.sh?raw=true > ecr_token.sh
+                    sudo chmod +x ecr_token.sh
+                    sh ecr_token.sh
+                    npm install -g caprover
+                    caprover deploy --appToken ${APP_WEB} --caproverUrl https://captain.tools.klinikpintar.id --imageName ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/kp-automated-test:${IMAGE_TAG} --appName ${APP_NAME}

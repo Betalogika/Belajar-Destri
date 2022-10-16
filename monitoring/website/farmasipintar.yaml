@@ -1,0 +1,14 @@
+probes:
+  - id: farmasiPintar
+    name: Website Farmasi Pintar
+    description: Probe check for Farmasi Pintar website
+    interval: 1800 # every 30 minutes
+    requests:
+      - url: https://farmasipintar.id/
+        timeout: 3000
+notifications:
+  - id: gchatNotif
+    type: google-chat
+    data:
+      url: https://chat.googleapis.com/v1/spaces/AAAA8j2DsJU/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=twmAy9tIFwVe4JqZXcKXqepUO11hPhJJ9kVrO66m0xQ%3D # Production Falsy Report channel
+      # url: https://chat.googleapis.com/v1/spaces/AAAAvn43aA4/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=akV3lWwe4rc_I_hcE-TubFLy9CZjtp_I6oyhKCgo6HA%3D # Development Falsy Report channel
